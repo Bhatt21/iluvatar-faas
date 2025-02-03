@@ -210,4 +210,8 @@ impl RegistrationService {
     pub fn get_registration(&self, fqdn: &str) -> Option<Arc<RegisteredFunction>> {
         self.reg_map.read().get(fqdn).cloned()
     }
+
+    pub fn list_registrations(&self) -> Vec<Arc<RegisteredFunction>> {
+        self.reg_map.read().values().cloned().collect()
+    }
 }

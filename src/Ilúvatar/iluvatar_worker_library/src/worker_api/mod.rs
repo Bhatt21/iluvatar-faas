@@ -15,7 +15,7 @@ use iluvatar_library::types::{Compute, HealthStatus, Isolation, ResourceTimings}
 use iluvatar_library::{bail_error, characteristics_map::CharacteristicsMap};
 use iluvatar_library::{characteristics_map::AgExponential, energy::energy_logging::EnergyLogger};
 use iluvatar_library::{transaction::TransactionId, types::MemSizeMb};
-use iluvatar_rpc::rpc::{CleanResponse, InvokeResponse, StatusResponse};
+use iluvatar_rpc::rpc::{CleanResponse, InvokeResponse, StatusResponse, ListFunctionResponse};
 use std::sync::Arc;
 
 pub mod worker_config;
@@ -174,4 +174,5 @@ pub trait WorkerAPI {
     async fn status(&mut self, tid: TransactionId) -> Result<StatusResponse>;
     async fn health(&mut self, tid: TransactionId) -> Result<HealthStatus>;
     async fn clean(&mut self, tid: TransactionId) -> Result<CleanResponse>;
+    async fn list_registered_funcs(&mut self, tid: TransactionId) -> Result<ListFunctionResponse>;
 }
