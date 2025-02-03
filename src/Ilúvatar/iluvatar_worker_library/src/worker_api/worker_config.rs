@@ -1,7 +1,6 @@
-use crate::services::{
-    containers::docker::DockerConfig,
-    invocation::queueing::{gpu_mqfq::MqfqConfig, EnqueueingPolicy},
-};
+use crate::services::invocation::dispatching::greedy_weight::GreedyWeightConfig;
+use crate::services::invocation::dispatching::{landlord::LandlordConfig, EnqueueingPolicy};
+use crate::services::{containers::docker::DockerConfig, invocation::queueing::gpu_mqfq::MqfqConfig};
 use config::{Config, File};
 use iluvatar_library::{
     energy::EnergyConfig,
@@ -38,7 +37,8 @@ pub struct Configuration {
     /// full URL to access the controller/load balancer, required for worker registration.
     /// If missing or empty, the worker will not try and register with the controller.
     /// If registration fails, the worker will exit.
-    pub load_balancer_url: Option<String>,
+    pub load_balancer_host: Option<String>,
+    pub load_balancer_port: Option<Port>,
     /// Optional because energy monitoring is not required
     pub energy: Option<Arc<EnergyConfig>>,
     pub invocation: Arc<InvocationConfig>,
@@ -177,10 +177,19 @@ pub struct InvocationConfig {
     /// The policy by which the worker decides how to enqueue polymorphic functions
     /// By default it uses [EnqueueingPolicy::All]
     pub enqueueing_policy: Option<EnqueueingPolicy>,
+    pub enqueuing_log_details: Option<bool>,
+    pub speedup_ratio: Option<f64>,
     /// If present and not zero, invocations with an execution duration less than this
     ///   will bypass concurrency restrictions and be run immediately
     pub bypass_duration_ms: Option<u64>,
     pub mqfq_config: Option<Arc<MqfqConfig>>,
+    pub landlord_config: Option<Arc<LandlordConfig>>,
+    pub greedy_weight_config: Option<Arc<GreedyWeightConfig>>,
+}
+impl InvocationConfig {
+    pub fn log_details(&self) -> bool {
+        self.enqueuing_log_details.unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,7 +247,7 @@ impl Configuration {
                     Ok(s) => s,
                     Err(e) => {
                         anyhow::bail!("Failed to set override '{}' to '{}' because {}", k, v, e)
-                    }
+                    },
                 };
             }
         }
