@@ -14,6 +14,7 @@ pip install ilubuild
 
 ## Usage
 
+```sh
 Usage: ilubuild [OPTIONS]
 
   CLI tool to build a Docker runtime for FaaS.
@@ -29,10 +30,13 @@ Options:
   --gpu                   Use GPU base image.
   --help                  Show this message and exit.
 
+```
 ## Examples
 
 Assuming your function is in a directory called my_function/, you can build a Docker image with:
-ilubuild --function-dir my_function --tag <docker image name>:version
+```sh
+ilubuild --function-dir my_function --tag <tag_name>:version
+```
 
 For python specific functions
 This will:
@@ -40,7 +44,7 @@ This will:
     Ensure a requirements.txt (or equivalent) file exists, creating an empty one if missing.
 
 ### Build and Push to a Private Docker Registry
-    ```sh
+```sh
     ilubuild --function-dir my_function \
   --docker-user myusername \
   --docker-pass mypassword \
@@ -64,6 +68,7 @@ Verify your Docker credentials and registry URL. Try logging in manually:
 ```sh
 docker login -u myusername -p mypassword docker.io
 ```
+
 
 
 
