@@ -98,5 +98,5 @@ pub enum Commands {
     /// Play table tennis
     Ping,
     /// List all registered functions
-    ListRegistered,
+    List,
 }
