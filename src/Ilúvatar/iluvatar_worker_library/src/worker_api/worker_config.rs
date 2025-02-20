@@ -1,13 +1,9 @@
 use crate::services::invocation::dispatching::greedy_weight::GreedyWeightConfig;
 use crate::services::invocation::dispatching::{landlord::LandlordConfig, EnqueueingPolicy};
 use crate::services::{containers::docker::DockerConfig, invocation::queueing::gpu_mqfq::MqfqConfig};
-use config::{Config, File};
+use iluvatar_library::types::Compute;
 use iluvatar_library::{
-    energy::EnergyConfig,
-    influx::InfluxConfig,
-    logging::LoggingConfig,
-    types::{ComputeEnum, MemSizeMb},
-    utils::port_utils::Port,
+    energy::EnergyConfig, influx::InfluxConfig, logging::LoggingConfig, types::MemSizeMb, utils::port_utils::Port,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -108,13 +104,16 @@ pub struct GPUResourceConfig {
     /// Maybe be delayed if update takes longer than freq
     pub status_update_freq_ms: Option<u64>,
     /// Set up a standalone MPS daemon to control GPU access.
+    /// Portions out GPU memory and compute if supported by hardware
     pub use_standalone_mps: Option<bool>,
+    /// Splits hardware using [MIG](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html) into the specified number of slices.
+    /// Must match an exact number of instances supported by a MIG profile.
+    /// Each will have [Self::funcs_per_device] containers.
+    pub mig_shares: Option<u32>,
     /// How much physical memory each function is 'allocated' on the GPU.
     /// Allows (hardware / this) number of items on GPU to have access to the GPU at once.
     /// If missing, entire GPU is allocated to function.
     pub per_func_memory_mb: Option<MemSizeMb>,
-    /// Use [CUDA_MPS_ACTIVE_THREAD_PERCENTAGE](https://docs.nvidia.com/deploy/mps/index.html#topic_5_2_5) in proportion to GPU memory allocation.
-    pub mps_limit_active_threads: Option<bool>,
     /// Enable driver hook library to force unified memory in function.
     /// Must also pass [Self::funcs_per_device] as greater than 0
     pub use_driver_hook: Option<bool>,
@@ -138,6 +137,10 @@ impl GPUResourceConfig {
     /// Returns true if MPS (of any sort) is enabled
     pub fn mps_enabled(&self) -> bool {
         self.use_standalone_mps.unwrap_or(false)
+    }
+    /// Returns true if sending memory hints is enabled
+    pub fn mig_enabled(&self) -> bool {
+        self.mig_shares.unwrap_or(0) > 0
     }
     /// Returns true if using driver hook is enabled
     pub fn driver_hook_enabled(&self) -> bool {
@@ -171,9 +174,9 @@ pub struct InvocationConfig {
     /// Duration in milliseconds the worker queue will sleep between checking for new invocations
     pub queue_sleep_ms: u64,
     /// Queue to use for different compute resources
-    pub queues: HashMap<ComputeEnum, String>,
+    pub queues: HashMap<Compute, String>,
     /// Queueing policy to use for different compute resources
-    pub queue_policies: HashMap<ComputeEnum, String>,
+    pub queue_policies: HashMap<Compute, String>,
     /// The policy by which the worker decides how to enqueue polymorphic functions
     /// By default it uses [EnqueueingPolicy::All]
     pub enqueueing_policy: Option<EnqueueingPolicy>,
@@ -219,51 +222,12 @@ pub struct StatusConfig {
     pub report_freq_ms: u64,
 }
 
+pub const WORKER_ENV_PREFIX: &str = "ILUVATAR_WORKER";
 /// A wrapper type for the loaded global worker configuration
 pub type WorkerConfig = Arc<Configuration>;
 
 impl Configuration {
-    pub fn new(config_fpath: &Option<&str>, overrides: Option<Vec<(String, String)>>) -> anyhow::Result<Self> {
-        let mut sources = vec!["worker/src/worker.json", "worker/src/worker.dev.json"];
-        if let Some(config_fpath) = config_fpath {
-            sources.push(config_fpath);
-        }
-        let mut s = Config::builder()
-            .add_source(
-                sources
-                    .iter()
-                    .filter(|path| std::path::Path::new(&path).exists())
-                    .map(|path| File::with_name(path))
-                    .collect::<Vec<_>>(),
-            )
-            .add_source(
-                config::Environment::with_prefix("ILUVATAR_WORKER")
-                    .try_parsing(true)
-                    .separator("__"),
-            );
-        if let Some(overrides) = overrides {
-            for (k, v) in overrides {
-                s = match s.set_override(&k, v.clone()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        anyhow::bail!("Failed to set override '{}' to '{}' because {}", k, v, e)
-                    },
-                };
-            }
-        }
-        match s.build() {
-            Ok(s) => match s.try_deserialize() {
-                Ok(cfg) => Ok(cfg),
-                Err(e) => anyhow::bail!("Failed to deserialize configuration because '{}'", e),
-            },
-            Err(e) => anyhow::bail!("Failed to build configuration because '{}'", e),
-        }
-    }
-
-    pub fn boxed(
-        config_fpath: &Option<&str>,
-        overrides: Option<Vec<(String, String)>>,
-    ) -> anyhow::Result<WorkerConfig> {
-        Ok(Arc::new(Configuration::new(config_fpath, overrides)?))
+    pub fn boxed(config_fpath: Option<&str>, overrides: Option<Vec<(String, String)>>) -> anyhow::Result<WorkerConfig> {
+        iluvatar_library::config::load_config::<WorkerConfig>(None, config_fpath, overrides, WORKER_ENV_PREFIX)
     }
 }

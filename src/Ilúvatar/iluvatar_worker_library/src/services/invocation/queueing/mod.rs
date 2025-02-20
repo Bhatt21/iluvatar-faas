@@ -26,11 +26,13 @@ pub mod queueless;
 
 // GPU focused queues
 pub mod dynamic_batching;
+pub mod eedf_gpu;
 pub mod fcfs_gpu;
 pub mod gpu_mqfq;
 pub mod oldest_gpu;
 pub mod paella;
 pub mod sized_batches_gpu;
+pub mod sjf_gpu;
 
 /// A trait representing the functionality a queue policy must implement.
 pub trait InvokerCpuQueuePolicy: Send + Sync {
@@ -264,7 +266,7 @@ impl<T: Ord> PartialEq for MinHeapEnqueuedInvocation<T> {
 mod heapstructs {
     use super::*;
     use iluvatar_library::clock::{get_global_clock, Clock};
-    use std::collections::{BinaryHeap, HashMap};
+    use std::collections::BinaryHeap;
 
     fn min_item(name: &str, priority: f64, clock: &Clock) -> MinHeapFloat {
         let rf = Arc::new(RegisteredFunction {
@@ -274,11 +276,8 @@ mod heapstructs {
             image_name: name.to_string(),
             memory: 1,
             cpus: 1,
-            snapshot_base: "".to_string(),
             parallel_invokes: 1,
-            isolation_type: iluvatar_library::types::Isolation::CONTAINERD,
-            supported_compute: iluvatar_library::types::Compute::CPU,
-            historical_runtime_data_sec: HashMap::new(),
+            ..Default::default()
         });
         MinHeapEnqueuedInvocation::new_f(
             Arc::new(EnqueuedInvocation::new(
@@ -338,11 +337,8 @@ mod heapstructs {
             image_name: name.to_string(),
             memory: 1,
             cpus: 1,
-            snapshot_base: "".to_string(),
             parallel_invokes: 1,
-            isolation_type: iluvatar_library::types::Isolation::CONTAINERD,
-            supported_compute: iluvatar_library::types::Compute::CPU,
-            historical_runtime_data_sec: HashMap::new(),
+            ..Default::default()
         });
         MinHeapEnqueuedInvocation::new(
             Arc::new(EnqueuedInvocation::new(
@@ -401,11 +397,8 @@ mod heapstructs {
             image_name: name.to_string(),
             memory: 1,
             cpus: 1,
-            snapshot_base: "".to_string(),
             parallel_invokes: 1,
-            isolation_type: iluvatar_library::types::Isolation::CONTAINERD,
-            supported_compute: iluvatar_library::types::Compute::CPU,
-            historical_runtime_data_sec: HashMap::new(),
+            ..Default::default()
         });
         MinHeapEnqueuedInvocation::new(
             Arc::new(EnqueuedInvocation::new(
