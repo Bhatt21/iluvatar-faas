@@ -310,7 +310,7 @@ impl IluvatarWorker for IluvatarWorkerImpl {
     async fn list_registered_funcs(&self, request: Request<ListFunctionRequest>) -> Result<Response<ListFunctionResponse>, Status> {
         let request = request.into_inner();
         info!(tid=%request.transaction_id, "Handling list registered functions request");
-        let funcs: Vec<Arc<crate::services::registration::RegisteredFunction>> = self.reg.list_registrations();
+        let funcs: Vec<Arc<crate::services::registration::RegisteredFunction>> = self.reg.get_all_registered_functions();
         let formatted_json = funcs.iter().map(|func| {
             serde_json::json!({
                 "function_name": func.function_name,
