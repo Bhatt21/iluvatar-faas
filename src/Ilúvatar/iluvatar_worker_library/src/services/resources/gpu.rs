@@ -299,14 +299,14 @@ impl GpuResourceTracker {
             if config.count == 0 {
                 return Ok(None);
             }
-            match config.mig_enabled() {
-                true => Self::enable_mig(tid),
-                false => Self::disable_mig(tid),
-            }?;
-
             let (gpu_structs, metadata) = Self::prepare_structs(&config, tid)?;
             let mut nvml = None;
             if !iluvatar_library::utils::is_simulation() {
+                match config.mig_enabled() {
+                    true => Self::enable_mig(tid),
+                    false => Self::disable_mig(tid),
+                }?;
+
                 if config.mps_enabled() {
                     if docker.is_some() {
                         if let Some(docker) = docker.as_ref().unwrap().as_any().downcast_ref::<DockerIsolation>() {
@@ -885,6 +885,7 @@ impl GpuResourceTracker {
     }
 
     /// get the utilization of GPUs on the system
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn smi_gpu_utilization(svc: Arc<Self>, tid: TransactionId) {
         if !std::path::Path::new("/usr/bin/nvidia-smi").exists() {
             trace!(tid=%tid, "nvidia-smi not found, not checking GPU utilization");
@@ -941,6 +942,7 @@ impl GpuResourceTracker {
     }
 
     #[cfg(target_os = "linux")]
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn nvml_gpu_utilization(nvml: &Nvml, svc: &Arc<Self>, tid: &TransactionId) -> Result<(), NvmlError> {
         let is_empty = (*svc.status_info.read()).is_empty();
         let mut ret: Vec<GpuStatus> = vec![];
@@ -983,6 +985,7 @@ impl GpuResourceTracker {
         Ok(())
     }
 
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn simulation_gpu_util(svc: &Arc<Self>, _tid: &TransactionId) {
         let mut status: Vec<GpuStatus> = vec![];
         // TODO: proper GPU utilization
@@ -997,6 +1000,7 @@ impl GpuResourceTracker {
     }
 
     /// get the utilization of GPUs on the system
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn gpu_utilization(svc: Arc<Self>, tid: TransactionId) {
         if iluvatar_library::utils::is_simulation() {
             Self::simulation_gpu_util(&svc, &tid).await

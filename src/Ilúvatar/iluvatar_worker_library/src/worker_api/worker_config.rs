@@ -1,19 +1,15 @@
 use crate::services::invocation::dispatching::greedy_weight::GreedyWeightConfig;
 use crate::services::invocation::dispatching::{landlord::LandlordConfig, EnqueueingPolicy};
 use crate::services::{containers::docker::DockerConfig, invocation::queueing::gpu_mqfq::MqfqConfig};
-use config::{Config, File};
+use iluvatar_library::types::Compute;
 use iluvatar_library::{
-    energy::EnergyConfig,
-    influx::InfluxConfig,
-    logging::LoggingConfig,
-    types::{ComputeEnum, MemSizeMb},
-    utils::port_utils::Port,
+    energy::EnergyConfig, influx::InfluxConfig, logging::LoggingConfig, types::MemSizeMb, utils::port_utils::Port,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Configuration {
     /// name for the server
     pub name: String,
@@ -49,7 +45,7 @@ pub struct Configuration {
     pub influx: Option<Arc<InfluxConfig>>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 /// total resources the worker is allowed to allocate to containers
 pub struct ContainerResourceConfig {
     /// total memory pool in MB
@@ -79,7 +75,7 @@ pub struct ContainerResourceConfig {
     /// Settings for the CPU compute resources the worker can use
     pub gpu_resource: Option<Arc<GPUResourceConfig>>,
 }
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 /// Configuration detailing a single type of compute.
 pub struct CPUResourceConfig {
     /// number of cores it can use, i.e. number of concurrent functions allowed at once
@@ -95,7 +91,7 @@ pub struct CPUResourceConfig {
     /// Ilúvatar assumes that it will be the only program running on the system with this enabled, and has access to all CPUs.
     pub max_load: Option<f64>,
 }
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 /// Configuration detailing a single type of compute
 pub struct GPUResourceConfig {
     /// Number of GPU devices it can use, i.e. number of concurrent functions allowed at once.
@@ -156,7 +152,7 @@ impl GPUResourceConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 /// limits to place on an individual invocation
 pub struct FunctionLimits {
     /// minimum memory allocation allowed
@@ -169,7 +165,7 @@ pub struct FunctionLimits {
     pub timeout_sec: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 /// Internal knobs for how the [crate::services::invocation::InvokerFactory], and types it creates, work
 pub struct InvocationConfig {
     /// number of retries before giving up on an invocation
@@ -178,9 +174,9 @@ pub struct InvocationConfig {
     /// Duration in milliseconds the worker queue will sleep between checking for new invocations
     pub queue_sleep_ms: u64,
     /// Queue to use for different compute resources
-    pub queues: HashMap<ComputeEnum, String>,
+    pub queues: HashMap<Compute, String>,
     /// Queueing policy to use for different compute resources
-    pub queue_policies: HashMap<ComputeEnum, String>,
+    pub queue_policies: HashMap<Compute, String>,
     /// The policy by which the worker decides how to enqueue polymorphic functions
     /// By default it uses [EnqueueingPolicy::All]
     pub enqueueing_policy: Option<EnqueueingPolicy>,
@@ -199,7 +195,7 @@ impl InvocationConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 /// Networking details to connect containers to the network
 pub struct NetworkingConfig {
     /// bridge name to create
@@ -220,57 +216,18 @@ pub struct NetworkingConfig {
     pub hardware_interface: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 /// Config related to status monitoring of the worker system & host
 pub struct StatusConfig {
     pub report_freq_ms: u64,
 }
 
+pub const WORKER_ENV_PREFIX: &str = "ILUVATAR_WORKER";
 /// A wrapper type for the loaded global worker configuration
 pub type WorkerConfig = Arc<Configuration>;
 
 impl Configuration {
-    pub fn new(config_fpath: &Option<&str>, overrides: Option<Vec<(String, String)>>) -> anyhow::Result<Self> {
-        let mut sources = vec!["worker/src/worker.json", "worker/src/worker.dev.json"];
-        if let Some(config_fpath) = config_fpath {
-            sources.push(config_fpath);
-        }
-        let mut s = Config::builder()
-            .add_source(
-                sources
-                    .iter()
-                    .filter(|path| std::path::Path::new(&path).exists())
-                    .map(|path| File::with_name(path))
-                    .collect::<Vec<_>>(),
-            )
-            .add_source(
-                config::Environment::with_prefix("ILUVATAR_WORKER")
-                    .try_parsing(true)
-                    .separator("__"),
-            );
-        if let Some(overrides) = overrides {
-            for (k, v) in overrides {
-                s = match s.set_override(&k, v.clone()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        anyhow::bail!("Failed to set override '{}' to '{}' because {}", k, v, e)
-                    },
-                };
-            }
-        }
-        match s.build() {
-            Ok(s) => match s.try_deserialize() {
-                Ok(cfg) => Ok(cfg),
-                Err(e) => anyhow::bail!("Failed to deserialize configuration because '{}'", e),
-            },
-            Err(e) => anyhow::bail!("Failed to build configuration because '{}'", e),
-        }
-    }
-
-    pub fn boxed(
-        config_fpath: &Option<&str>,
-        overrides: Option<Vec<(String, String)>>,
-    ) -> anyhow::Result<WorkerConfig> {
-        Ok(Arc::new(Configuration::new(config_fpath, overrides)?))
+    pub fn boxed(config_fpath: Option<&str>, overrides: Option<Vec<(String, String)>>) -> anyhow::Result<WorkerConfig> {
+        iluvatar_library::config::load_config::<WorkerConfig>(None, config_fpath, overrides, WORKER_ENV_PREFIX)
     }
 }
