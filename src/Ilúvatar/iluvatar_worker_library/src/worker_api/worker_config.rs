@@ -17,6 +17,8 @@ pub struct Configuration {
     pub address: String,
     /// port to listen on
     pub port: Port,
+    /// port to listen on for HTTP requests
+    pub http_port: Port,
     /// request timeout length in seconds
     pub timeout_sec: u64,
     /// See documentation [here](https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html#method.event_interval) for details
