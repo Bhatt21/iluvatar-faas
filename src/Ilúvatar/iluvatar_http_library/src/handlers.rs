@@ -4,30 +4,37 @@ use axum::{
 };
 use serde_json::json;
 use std::collections::HashMap;
-use tracing::info;
-use iluvatar_worker_library::worker_api::{rpc::RPCWorkerAPI, WorkerAPI};
+use tracing::debug;
+use iluvatar_worker_library::worker_api::WorkerAPI;
 use iluvatar_library::transaction::gen_tid;
 use iluvatar_library::types::{Compute, ContainerServer, Isolation};
 
-use crate::HttpServer;
+use crate::http_server::{HttpServer, RegisterParams};
 
 /// Handler for the /ping route.
-pub async fn handle_ping(Extension(server): Extension<HttpServer>) -> String {
+/// returns 'pong', IntoResponse just converts the string to a response.
+pub async fn handle_ping(Extension(server): Extension<HttpServer>) -> impl IntoResponse {
     let tid = gen_tid();
     let mut api = match server.create_rpc_client(&tid).await {
         Ok(api) => api,
         Err(e) => return e,
     };
     let ret = api.ping(tid).await.unwrap();
-    info!("{}", ret);
+    debug!("Ping RPC returned: {}", ret);
     ret
 }
 
 /// Handler for the /register route.
+/// This handler is a POST request
+/// Extention is a way to pass data/config to the handler. we are passing the HttpServer instance.
+/// Json is a way to parse the request body into a struct.
 pub async fn handle_register(
     Extension(server): Extension<HttpServer>,
-    Json(params): Json<crate::RegisterParams>,
+    Json(params): Json<RegisterParams>,
 ) -> impl IntoResponse {
+
+    // some validation before we make a request to the rpc server.
+
     // Validate isolation.
     let isolation_str = params.isolate.to_lowercase();
     let isolation = match isolation_str.as_str() {
@@ -46,7 +53,7 @@ pub async fn handle_register(
 
     let tid = gen_tid();
     let image = params.image;
-    let mem_size_mb: i64 = params.memory as i64; // casting memory to i64
+    let mem_size_mb: i64 = params.memory as i64; 
     let server_type = ContainerServer::HTTP;
 
     let mut api = match server.create_rpc_client(&tid).await {
@@ -61,7 +68,7 @@ pub async fn handle_register(
             image,
             mem_size_mb,
             params.cpu,
-            1, // some_constant
+            1,
             tid,
             isolation.into(),
             compute.into(),
@@ -74,11 +81,12 @@ pub async fn handle_register(
         Err(e) => return format!("Error during RPC register call: {:?}", e),
     };
 
-    info!("Register RPC returned: {}", ret);
+    debug!("Register RPC returned: {}", ret);
     ret
 }
 
 /// Handler for the /invoke/:func_name/:version route.
+/// a simple GET request, example: /invoke/my_func/1?arg1=1&arg2=2
 pub async fn handle_invoke(
     Extension(server): Extension<HttpServer>,
     Path((func_name, version)): Path<(String, String)>,
@@ -100,12 +108,12 @@ pub async fn handle_invoke(
         Err(e) => return format!("Error during RPC invoke call: {:?}", e),
     };
 
-    info!("RPC invoke returned: {:?}", ret);
-    serde_json::to_string(&ret)
-        .unwrap_or_else(|e| format!("Error converting result to JSON: {:?}", e))
+    debug!("RPC invoke returned: {:?}", ret);
+    serde_json::to_string(&ret).unwrap()
 }
 
 /// Handler for the /async_invoke/:func_name/:version route.
+/// returns cookie to track result of async call.
 pub async fn handle_async_invoke(
     Extension(server): Extension<HttpServer>,
     Path((func_name, version)): Path<(String, String)>,
@@ -127,11 +135,14 @@ pub async fn handle_async_invoke(
         Err(e) => return format!("Error during RPC invoke_async call: {:?}", e),
     };
 
-    info!("RPC async_invoke returned: {}", ret);
-    ret
+    debug!("RPC async_invoke returned: {}", ret);
+    let json_response = json!({ "cookie": ret });
+    serde_json::to_string(&json_response).unwrap()
+    // ret
 }
 
 /// Handler for the /invoke_async_check/:cookie route.
+/// example /invoke_async_check/<cookie_value>
 pub async fn handle_async_invoke_check(
     Extension(server): Extension<HttpServer>,
     Path(cookie): Path<String>,
@@ -147,11 +158,11 @@ pub async fn handle_async_invoke_check(
         Err(e) => return format!("Error during RPC invoke_async_check call: {:?}", e),
     };
 
-    serde_json::to_string(&ret)
-        .unwrap_or_else(|e| format!("Error converting result to JSON: {:?}", e))
+    serde_json::to_string(&ret).unwrap()
 }
 
 /// Handler for the /list_registered_func route.
+/// returns a list of registered functions.
 pub async fn handle_list_registered_funcs(
     Extension(server): Extension<HttpServer>
 ) -> impl IntoResponse {
@@ -179,6 +190,5 @@ pub async fn handle_list_registered_funcs(
         .collect::<Vec<_>>();
 
     let output = json!({ "functions": functions });
-    serde_json::to_string(&output)
-        .unwrap_or_else(|e| format!("Error converting result to JSON: {:?}", e))
+    serde_json::to_string(&output).unwrap()
 }

@@ -5,7 +5,7 @@ use anyhow::Result;
 
 use std::net::SocketAddr;
 
-/// Creates an HttpServer instance from a given address and port.
+// instantiate the HTTP server with rpc host and port
 pub async fn create_http_server(addr: &str, port: u16, rpc_host: &str, rpc_port: u16) ->Result< http_server::HttpServer > {
     let socket_addr: SocketAddr = format!("{}:{}", addr, port)
         .parse()
