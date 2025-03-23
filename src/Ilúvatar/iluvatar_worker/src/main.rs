@@ -39,13 +39,13 @@ async fn run(server_config: WorkerConfig, tid: &TransactionId) -> Result<()> {
     );
 
     match &server_config.http_server {
-        Some(h) => {
-            match h.enabled {
+        Some(c) => {
+            match c.enabled {
                 true => {
                     info!(tid = tid, "HTTP server enabled, starting the server");
                     let http_server = match create_http_server(
-                        &h.address,
-                        h.port,
+                        &c.address,
+                        c.port,
                         &server_config.address,
                         server_config.port,
                     )
