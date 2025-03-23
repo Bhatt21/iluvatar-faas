@@ -1,7 +1,7 @@
 {
   "name": "worker",
   "address": "127.0.0.1",
-  "port": 8031,
+  "port": 8079,
   "timeout_sec": 6000,
   "tokio_event_interval": 20,
   "tokio_queue_interval": 20,
@@ -37,8 +37,7 @@
     "basename": "worker",
     "spanning": "NEW+CLOSE",
     "flame": "",
-    "span_energy_monitoring": false,
-    "stdout": true
+    "span_energy_monitoring": false
   },
   "container_resources": {
     "memory_mb": 20480,
@@ -64,9 +63,9 @@
     "cni_plugin_bin": "/opt/cni/bin",
     "cni_name": "il_worker_br",
     "use_pool": true,
-    "pool_size": 3,
+    "pool_size": 20,
     "pool_freq_ms": 500,
-    "hardware_interface": "enp175s0f0"
+    "hardware_interface": "eth0"
   },
   "load_balancer_url": "http://localhost:8078",
   "energy": {
@@ -82,8 +81,8 @@
     "report_freq_ms": 5000
   },
   "http_server": {
-    "address":"127.0.0.1",
-    "enabled": true,
-    "port": 8032
+    "address": "127.0.0.1",
+    "enabled": false,
+    "port": 8082
   }
 }
