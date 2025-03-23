@@ -2,7 +2,6 @@
   "name": "worker",
   "address": "127.0.0.1",
   "port": 8031,
-  "http_port": 8032,
   "timeout_sec": 6000,
   "tokio_event_interval": 20,
   "tokio_queue_interval": 20,
@@ -81,5 +80,10 @@
   },
   "status": {
     "report_freq_ms": 5000
+  },
+  "http_server": {
+    "address":"127.0.0.1",
+    "enabled": true,
+    "port": 8032
   }
 }

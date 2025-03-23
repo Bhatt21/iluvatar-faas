@@ -1,13 +1,13 @@
 use axum::{
-    extract::{Extension, Path, Query, Json},
+    extract::{Extension, Json, Path, Query},
     response::IntoResponse,
 };
+use iluvatar_library::transaction::gen_tid;
+use iluvatar_library::types::{Compute, ContainerServer, Isolation};
+use iluvatar_worker_library::worker_api::WorkerAPI;
 use serde_json::json;
 use std::collections::HashMap;
 use tracing::debug;
-use iluvatar_worker_library::worker_api::WorkerAPI;
-use iluvatar_library::transaction::gen_tid;
-use iluvatar_library::types::{Compute, ContainerServer, Isolation};
 
 use crate::http_server::{HttpServer, RegisterParams};
 
@@ -32,7 +32,6 @@ pub async fn handle_register(
     Extension(server): Extension<HttpServer>,
     Json(params): Json<RegisterParams>,
 ) -> impl IntoResponse {
-
     // some validation before we make a request to the rpc server.
 
     // Validate isolation.
@@ -53,7 +52,7 @@ pub async fn handle_register(
 
     let tid = gen_tid();
     let image = params.image;
-    let mem_size_mb: i64 = params.memory as i64; 
+    let mem_size_mb: i64 = params.memory as i64;
     let server_type = ContainerServer::HTTP;
 
     let mut api = match server.create_rpc_client(&tid).await {
@@ -163,9 +162,7 @@ pub async fn handle_async_invoke_check(
 
 /// Handler for the /list_registered_func route.
 /// returns a list of registered functions.
-pub async fn handle_list_registered_funcs(
-    Extension(server): Extension<HttpServer>
-) -> impl IntoResponse {
+pub async fn handle_list_registered_funcs(Extension(server): Extension<HttpServer>) -> impl IntoResponse {
     let tid = gen_tid();
     let mut api = match server.create_rpc_client(&tid).await {
         Ok(api) => api,

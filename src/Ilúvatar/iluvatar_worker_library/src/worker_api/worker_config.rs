@@ -5,6 +5,7 @@ use iluvatar_library::types::Compute;
 use iluvatar_library::{
     energy::EnergyConfig, influx::InfluxConfig, logging::LoggingConfig, types::MemSizeMb, utils::port_utils::Port,
 };
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,8 +18,6 @@ pub struct Configuration {
     pub address: String,
     /// port to listen on
     pub port: Port,
-    /// port to listen on for HTTP requests
-    pub http_port: Port,
     /// request timeout length in seconds
     pub timeout_sec: u64,
     /// See documentation [here](https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html#method.event_interval) for details
@@ -45,6 +44,7 @@ pub struct Configuration {
     pub energy_cap: Option<Arc<crate::services::invocation::energy_limiter::EnergyCapConfig>>,
     pub status: Arc<StatusConfig>,
     pub influx: Option<Arc<InfluxConfig>>,
+    pub http_server: Option<Arc<HttpServerConfig>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -222,6 +222,13 @@ pub struct NetworkingConfig {
 /// Config related to status monitoring of the worker system & host
 pub struct StatusConfig {
     pub report_freq_ms: u64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct HttpServerConfig {
+    pub address: String,
+    pub enabled: bool,
+    pub port: u16,
 }
 
 pub const WORKER_ENV_PREFIX: &str = "ILUVATAR_WORKER";

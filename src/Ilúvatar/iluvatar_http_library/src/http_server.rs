@@ -1,18 +1,14 @@
 use axum::{
     routing::{get, post},
-    Router, Extension,
+    Extension, Router,
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::handlers::{
-    handle_ping,
+    handle_async_invoke, handle_async_invoke_check, handle_invoke, handle_list_registered_funcs, handle_ping,
     handle_register,
-    handle_invoke,
-    handle_async_invoke,
-    handle_async_invoke_check,
-    handle_list_registered_funcs,
 };
 
 use anyhow::Result;
@@ -41,7 +37,11 @@ pub struct RegisterParams {
 impl HttpServer {
     /// Creates a new HttpServer instance.
     pub fn new(addr: SocketAddr, rpc_host: String, rpc_port: u16) -> Self {
-        Self { addr, rpc_host, rpc_port }
+        Self {
+            addr,
+            rpc_host,
+            rpc_port,
+        }
     }
 
     /// connects to the RPC server.
