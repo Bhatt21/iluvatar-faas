@@ -62,6 +62,7 @@ impl HttpServer {
             .route("/async_invoke/:func_name/:version", get(handle_async_invoke))
             .route("/invoke_async_check/:cookie", get(handle_async_invoke_check))
             .route("/list_registered_func", get(handle_list_registered_funcs))
+            // add extension to the app so we can access the server from the handlers(to get rpc_host and port).
             .layer(Extension(self.clone()));
 
         info!(address = %self.addr, "Starting HTTP listener");
