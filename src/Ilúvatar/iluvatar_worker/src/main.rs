@@ -4,7 +4,7 @@ use iluvatar_controller_library::server::controller_comm::ControllerAPIFactory;
 use iluvatar_library::tokio_utils::build_tokio_runtime;
 use iluvatar_library::transaction::{TransactionId, STARTUP_TID};
 use iluvatar_library::types::CommunicationMethod;
-// use iluvatar_library::http::create_http_server;
+use iluvatar_http_library::create_http_server;
 use iluvatar_library::{bail_error, logging::start_tracing, utils::wait_for_exit_signal};
 use iluvatar_rpc::rpc::iluvatar_worker_server::IluvatarWorkerServer;
 use iluvatar_rpc::rpc::RegisterWorkerRequest;
@@ -38,18 +38,17 @@ async fn run(server_config: WorkerConfig, tid: &TransactionId) -> Result<()> {
             .serve(addr.parse()?),
     );
 
-    // info!(tid=tid, "Starting HTTP server");
-    // let http_server = match create_http_server(&server_config.address, server_config.http_port).await {
-    //     Ok(s) => s,
-    //     Err(e) => bail_error!(tid=tid, error=%e, "Error creating HTTP server on startup"),
-    // };
-    // info!(tid=tid, "Running HTTP server");
-    // tokio::spawn(async move {
-    //     if let Err(e) = http_server.run().await {
-    //         eprintln!("HTTP server error: {}", e);
-    //     }
-    // });
-
+    info!(tid=tid, "Starting HTTP server");
+    let http_server = match create_http_server(&server_config.address, server_config.http_port, &server_config.address, server_config.port).await {
+        Ok(s) => s,
+        Err(e) => bail_error!(tid=tid, error=%e, "Error creating HTTP server on startup"),
+    };
+    info!(tid=tid, "Running HTTP server");
+    tokio::spawn(async move {
+        if let Err(e) = http_server.run().await {
+            eprintln!("HTTP server error: {}", e);
+        }
+    });
     match &server_config.load_balancer_host {
         Some(host) if !host.is_empty() => {
             match ControllerAPIFactory::boxed()
